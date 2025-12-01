@@ -1,28 +1,18 @@
+// backend/src/db.js
 const { Pool } = require('pg');
 
-// In local development, DATABASE_URL comes from .env
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.warn(
-    'DATABASE_URL is not set. Please define it in your .env file before starting the backend.'
-  );
+  throw new Error('DATABASE_URL environment variable is not set');
 }
 
-// Configure SSL for local development
-const sslConfig = process.env.PGSSLMODE === 'require'
-  ? { rejectUnauthorized: false }
-  : undefined;
-
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  connectionString,
+  // Render / cloud Postgres ke liye SSL
+  ssl: connectionString.includes('render.com')
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
-
-module.exports = {
-  pool,
-};
-
+module.exports = { pool };
