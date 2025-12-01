@@ -1,7 +1,6 @@
 const { Pool } = require('pg');
 
-// In Vercel/Railway, DATABASE_URL is automatically set by the PostgreSQL service
-// In local development, it comes from .env
+// In local development, DATABASE_URL comes from .env
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
@@ -10,12 +9,10 @@ if (!connectionString) {
   );
 }
 
-// Configure SSL for Vercel/Railway PostgreSQL
-const sslConfig = process.env.NODE_ENV === 'production' || process.env.VERCEL 
-  ? { rejectUnauthorized: false } 
-  : process.env.PGSSLMODE === 'require'
-    ? { rejectUnauthorized: false }
-    : undefined;
+// Configure SSL for local development
+const sslConfig = process.env.PGSSLMODE === 'require'
+  ? { rejectUnauthorized: false }
+  : undefined;
 
 const pool = new Pool({
   connectionString,

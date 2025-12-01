@@ -7,8 +7,8 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL is not set. Please provide it in the environment.');
   }
 
-  // In Vercel/Railway, we don't need to create databases - they're already provided
-  // The DATABASE_URL already points to the specific database
+  // In local development, we might need to create the database
+  // The DATABASE_URL might point to a database that doesn't exist yet
   const url = new URL(connectionString);
   const databaseName = decodeURIComponent(url.pathname.replace('/', ''));
 
@@ -16,18 +16,16 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL must include a database name.');
   }
 
-  // For Vercel/Railway, we can directly connect to the provided database
-  // No need to switch to postgres database for creation
+  // For local development, we might need to connect to postgres database to create our database
+  url.pathname = '/postgres';
+  const adminUrl = url.toString();
+
   const ssl =
-    process.env.PGSSLMODE === 'require' || process.env.VERCEL
+    process.env.PGSSLMODE === 'require'
       ? { rejectUnauthorized: false }
       : undefined;
 
-  return { 
-    adminUrl: connectionString, // Use the direct connection in Vercel/Railway
-    databaseName, 
-    ssl 
-  };
+  return { adminUrl, databaseName, ssl };
 }
 
 function quoteIdentifier(name) {
@@ -35,8 +33,6 @@ function quoteIdentifier(name) {
 }
 
 async function ensureDatabaseExists() {
-  // In Railway, the database is already provisioned
-  // We just need to verify we can connect
   const { adminUrl, databaseName, ssl } = buildAdminConnection();
   const adminPool = new Pool({
     connectionString: adminUrl,
@@ -44,13 +40,25 @@ async function ensureDatabaseExists() {
   });
 
   try {
-    // Test connection
     const client = await adminPool.connect();
-    await client.query('SELECT 1');
+    
+    // Check if database exists
+    const result = await client.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [databaseName]
+    );
+    
+    if (result.rowCount === 0) {
+      // Database doesn't exist, create it
+      await client.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
+      console.log(`Created database "${databaseName}".`);
+    } else {
+      console.log(`Database "${databaseName}" already exists.`);
+    }
+    
     client.release();
-    console.log(`Connected to database "${databaseName}".`);
   } catch (error) {
-    console.error('Failed to connect to database:', error.message);
+    console.error('Failed to ensure database exists:', error.message);
     throw error;
   } finally {
     await adminPool.end();

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// In production environments or Vercel, we don't need to run the full development stack
-if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+// In production environments, we don't need to run the full development stack
+if (process.env.NODE_ENV === 'production') {
   console.log('🚀 Starting Pet Shop Billing Application in Production Mode...');
   console.log('Starting backend server only...');
   
