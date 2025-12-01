@@ -7,6 +7,7 @@
     "start": "node start-all.js",
     "dev": "node start-all.js",
     "setup": "cd backend && node scripts/migrate.js",
+    "setup:vercel": "echo 'Run migrations manually with: vercel run npm run setup'",
     "start:prod": "NODE_ENV=production node start-all.js",
     "build": "cd frontend && npm install && npm run build",
     "build:frontend": "cd frontend && npm install && npm run build",

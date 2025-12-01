@@ -7,7 +7,7 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL is not set. Please provide it in the environment.');
   }
 
-  // In Railway, we don't need to create databases - they're already provided
+  // In Vercel/Railway, we don't need to create databases - they're already provided
   // The DATABASE_URL already points to the specific database
   const url = new URL(connectionString);
   const databaseName = decodeURIComponent(url.pathname.replace('/', ''));
@@ -16,15 +16,15 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL must include a database name.');
   }
 
-  // For Railway, we can directly connect to the provided database
+  // For Vercel/Railway, we can directly connect to the provided database
   // No need to switch to postgres database for creation
   const ssl =
-    process.env.PGSSLMODE === 'require'
+    process.env.PGSSLMODE === 'require' || process.env.VERCEL
       ? { rejectUnauthorized: false }
       : undefined;
 
   return { 
-    adminUrl: connectionString, // Use the direct connection in Railway
+    adminUrl: connectionString, // Use the direct connection in Vercel/Railway
     databaseName, 
     ssl 
   };

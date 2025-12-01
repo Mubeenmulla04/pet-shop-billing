@@ -1,12 +1,29 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const { pool } = require('../src/db');
-const { ensureDatabaseExists } = require('./ensureDatabase');
+
+// For Vercel deployments, we need to dynamically import db
+let pool;
+
+async function getDb() {
+  if (!pool) {
+    const dbModule = await import('../src/db');
+    pool = dbModule.pool;
+  }
+  return pool;
+}
 
 async function runMigrations() {
+  // Skip migrations in Vercel environment as they should be run manually
+  if (process.env.VERCEL) {
+    console.log('Skipping migrations in Vercel environment. Run manually if needed.');
+    return;
+  }
+
+  const { ensureDatabaseExists } = await import('./ensureDatabase');
   await ensureDatabaseExists();
 
-  const client = await pool.connect();
+  const db = await getDb();
+  const client = await db.connect();
 
   try {
     await client.query('BEGIN');
@@ -79,8 +96,11 @@ async function runMigrations() {
     console.error('Migration failed', error);
     process.exitCode = 1;
   } finally {
-    client.release();
-    await pool.end();
+    if (client) {
+      client.release();
+    }
+    const db = await getDb();
+    await db.end();
   }
 }
 
