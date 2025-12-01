@@ -15,9 +15,12 @@ const sslConfig = process.env.PGSSLMODE === 'require'
   : undefined;
 
 const pool = new Pool({
-  connectionString,
-  ssl: sslConfig,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
+
 
 module.exports = {
   pool,
