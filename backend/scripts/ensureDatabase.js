@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { Pool } = require('pg');
+const { pool } = require('../src/db');
 
 function buildAdminConnection() {
   const connectionString = process.env.DATABASE_URL;
