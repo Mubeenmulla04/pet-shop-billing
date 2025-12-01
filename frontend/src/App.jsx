@@ -20,9 +20,8 @@ function App() {
     name: '',
     price: '',
     stock: '',
+    image_url: '' // Add image_url to the state
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [billItems, setBillItems] = useState([]);
   const [customerName, setCustomerName] = useState('');
   const [paymentMode, setPaymentMode] = useState('cash');
@@ -240,46 +239,9 @@ function formatDateTime(value) {
     }
   }
 
-  async function handleImageUpload(file) {
-    if (!file) return null;
-
-    if (!session?.token) {
-      showFeedback('error', 'Admin login required to upload images.');
-      return null;
-    }
-
-    const formData = new FormData();
-    formData.append('image', file);
-
-    try {
-      setUploadingImage(true);
-      const response = await fetch(`${API_URL}/upload/product-image`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to upload image');
-      }
-
-      const data = await response.json();
-      return `${API_URL.replace('/api', '')}${data.imageUrl}`;
-    } catch (error) {
-      console.error(error);
-      showFeedback('error', error.message);
-      return null;
-    } finally {
-      setUploadingImage(false);
-    }
-  }
-
   async function handleAddProduct(event) {
     event.preventDefault();
-    const { name, price, stock } = newProduct;
+    const { name, price, stock, image_url } = newProduct;
 
     if (!name || price === '' || stock === '') {
       return showFeedback('error', 'All product fields are required.');
@@ -290,16 +252,6 @@ function formatDateTime(value) {
     }
 
     try {
-      let finalImageUrl = null;
-
-      // Upload image if file is selected
-      if (imageFile) {
-        const uploadedUrl = await handleImageUpload(imageFile);
-        if (uploadedUrl) {
-          finalImageUrl = uploadedUrl;
-        }
-      }
-
       const headers = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.token}`,
@@ -312,7 +264,7 @@ function formatDateTime(value) {
           name,
           price: Number(price),
           stock: Number(stock),
-          image_url: finalImageUrl || null,
+          image_url: image_url || null, // Use the image_url directly
         }),
       });
 
@@ -325,8 +277,7 @@ function formatDateTime(value) {
       setProducts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name))
       );
-      setNewProduct({ name: '', price: '', stock: '' });
-      setImageFile(null);
+      setNewProduct({ name: '', price: '', stock: '', image_url: '' }); // Reset image_url as well
       showFeedback('success', `${created.name} added to inventory.`);
     } catch (error) {
       console.error(error);
@@ -1270,16 +1221,39 @@ function formatDateTime(value) {
                 />
               </label>
               <label>
-                Product Image
+                Product Image URL
                 <input
-                  type="file"
-                  accept="image/*"
-                  disabled={!isAdmin || uploadingImage}
-                  onChange={(e) => setImageFile(e.target.files[0])}
+                  type="text"
+                  value={newProduct.image_url}
+                  disabled={!isAdmin}
+                  onChange={(e) =>
+                    setNewProduct((prev) => ({
+                      ...prev,
+                      image_url: e.target.value,
+                    }))
+                  }
+                  placeholder="https://example.com/image.jpg"
                   title={!isAdmin ? 'Admin login required' : undefined}
                 />
-                {imageFile && <p className="muted">Selected: {imageFile.name}</p>}
-                {uploadingImage && <p className="muted">Uploading image...</p>}
+                {newProduct.image_url && (
+                  <div style={{ marginTop: '8px' }}>
+                    <p className="muted">Preview:</p>
+                    <img 
+                      src={newProduct.image_url} 
+                      alt="Preview" 
+                      style={{ 
+                        maxWidth: '100px', 
+                        maxHeight: '100px', 
+                        objectFit: 'cover', 
+                        borderRadius: '4px',
+                        border: '1px solid #ddd'
+                      }}
+                      onError={(e) => { 
+                        e.target.style.display = 'none'; 
+                      }}
+                    />
+                  </div>
+                )}
               </label>
             </div>
             <button
