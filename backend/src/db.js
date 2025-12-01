@@ -9,7 +9,6 @@ if (!connectionString) {
 
 const pool = new Pool({
   connectionString,
-  // Render / cloud Postgres ke liye SSL
   ssl: connectionString.includes('render.com')
     ? { rejectUnauthorized: false }
     : false,
