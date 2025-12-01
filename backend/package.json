@@ -6,7 +6,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "db:migrate": "node scripts/migrate.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "echo 'Backend is ready for production'",
+    "start:prod": "NODE_ENV=production node src/index.js"
   },
   "keywords": [],
   "author": "",

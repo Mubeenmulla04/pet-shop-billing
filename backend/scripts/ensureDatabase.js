@@ -7,6 +7,8 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL is not set. Please provide it in the environment.');
   }
 
+  // In Railway, we don't need to create databases - they're already provided
+  // The DATABASE_URL already points to the specific database
   const url = new URL(connectionString);
   const databaseName = decodeURIComponent(url.pathname.replace('/', ''));
 
@@ -14,22 +16,27 @@ function buildAdminConnection() {
     throw new Error('DATABASE_URL must include a database name.');
   }
 
-  const adminUrl = new URL(connectionString);
-  adminUrl.pathname = '/postgres';
-
+  // For Railway, we can directly connect to the provided database
+  // No need to switch to postgres database for creation
   const ssl =
     process.env.PGSSLMODE === 'require'
       ? { rejectUnauthorized: false }
       : undefined;
 
-  return { adminUrl: adminUrl.toString(), databaseName, ssl };
+  return { 
+    adminUrl: connectionString, // Use the direct connection in Railway
+    databaseName, 
+    ssl 
+  };
 }
 
 function quoteIdentifier(name) {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace(/"/g, '"')}"`;
 }
 
 async function ensureDatabaseExists() {
+  // In Railway, the database is already provisioned
+  // We just need to verify we can connect
   const { adminUrl, databaseName, ssl } = buildAdminConnection();
   const adminPool = new Pool({
     connectionString: adminUrl,
@@ -37,21 +44,17 @@ async function ensureDatabaseExists() {
   });
 
   try {
-    const exists = await adminPool.query(
-      'SELECT 1 FROM pg_database WHERE datname = $1',
-      [databaseName]
-    );
-
-    if (exists.rowCount === 0) {
-      await adminPool.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
-      console.log(`Created database "${databaseName}".`);
-    } else {
-      console.log(`Database "${databaseName}" already exists.`);
-    }
+    // Test connection
+    const client = await adminPool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log(`Connected to database "${databaseName}".`);
+  } catch (error) {
+    console.error('Failed to connect to database:', error.message);
+    throw error;
   } finally {
     await adminPool.end();
   }
 }
 
 module.exports = { ensureDatabaseExists };
-

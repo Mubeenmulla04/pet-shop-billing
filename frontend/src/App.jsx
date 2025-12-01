@@ -29,11 +29,10 @@ function App() {
   const [customTotal, setCustomTotal] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [billSummary, setBillSummary] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [recentBills, setRecentBills] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics
+  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics, low-stock
   const [analytics, setAnalytics] = useState({
     today: null,
     monthly: null,
@@ -48,6 +47,22 @@ function App() {
   const [authError, setAuthError] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [printableBill, setPrintableBill] = useState(null);
+  const [stockUpdateModal, setStockUpdateModal] = useState({
+    isOpen: false,
+    productId: null,
+    productName: '',
+    currentStock: 0,
+    newStock: ''
+  });
+  const [pdfDownload, setPdfDownload] = useState({
+    isGenerating: false,
+    type: null // 'daily' or 'monthly'
+  });
+  const [monthlyReportParams, setMonthlyReportParams] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear()
+  });
+  const [showMonthlySelector, setShowMonthlySelector] = useState(false);
   const profileMenuRef = useRef(null);
   const printRef = useRef(null);
 
@@ -92,22 +107,6 @@ function formatDateTime(value) {
   if (!value) return '';
   return new Date(value).toLocaleString();
 }
-
-  const productStats = useMemo(() => {
-    const totalProducts = products.length;
-    const lowStock = products.filter(
-      (product) => Number(product.stock) > 0 && Number(product.stock) < 10
-    ).length;
-    const outOfStock = products.filter(
-      (product) => Number(product.stock) === 0
-    ).length;
-    const cartQuantity = billItems.reduce(
-      (sum, item) => sum + Number(item.quantity || 0),
-      0
-    );
-
-    return { totalProducts, lowStock, outOfStock, cartQuantity };
-  }, [products, billItems]);
 
   const isAdmin = Boolean(session?.token);
 
@@ -186,6 +185,8 @@ function formatDateTime(value) {
     persistSession(null);
     setCredentials({ username: '', password: '' });
     setProfileOpen(false);
+    // Redirect to billing page when logging out
+    setActivePage('billing');
     showFeedback('success', 'Logged out.');
   }
 
@@ -374,6 +375,227 @@ function formatDateTime(value) {
     }
   }
 
+  async function handleUpdateStock(productId, currentStock, productName) {
+    if (!isAdmin || !session?.token) {
+      return showFeedback('error', 'Admin login required to update stock.');
+    }
+
+    // Open the custom modal instead of using prompt
+    setStockUpdateModal({
+      isOpen: true,
+      productId,
+      productName: productName || '',
+      currentStock,
+      newStock: currentStock.toString()
+    });
+  }
+
+  async function submitStockUpdate() {
+    const { productId, newStock } = stockUpdateModal;
+    
+    const stockValue = parseInt(newStock);
+    
+    if (isNaN(stockValue) || stockValue < 0) {
+      showFeedback('error', 'Please enter a valid non-negative number for stock.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/products/${productId}/stock`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.token}`,
+        },
+        body: JSON.stringify({ stock: stockValue }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Unable to update stock');
+      }
+
+      const updatedProduct = await response.json();
+      
+      // Update the product in the local state
+      setProducts(prev => prev.map(product => 
+        product.id === productId ? updatedProduct : product
+      ));
+      
+      // Close the modal
+      setStockUpdateModal({
+        isOpen: false,
+        productId: null,
+        productName: '',
+        currentStock: 0,
+        newStock: ''
+      });
+      
+      showFeedback('success', `Stock updated to ${stockValue} for ${updatedProduct.name}.`);
+    } catch (error) {
+      console.error(error);
+      showFeedback('error', error.message);
+    }
+  }
+
+  // Generate PDF for analytics data
+  async function generateAnalyticsPDF(type) {
+    if (!isAdmin || !session?.token) {
+      return showFeedback('error', 'Admin login required to download analytics.');
+    }
+
+    // For monthly reports, show selector first
+    if (type === 'monthly' && !showMonthlySelector) {
+      setShowMonthlySelector(true);
+      return;
+    }
+
+    setPdfDownload({ isGenerating: true, type });
+    
+    try {
+      // Load detailed analytics data based on type
+      let reportData;
+      
+      if (type === 'daily') {
+        const response = await fetch(`${API_URL}/analytics/daily-sales`);
+        if (!response.ok) throw new Error('Failed to fetch daily sales data');
+        reportData = await response.json();
+      } else {
+        // For monthly reports, use selected parameters
+        const queryParams = new URLSearchParams({
+          month: monthlyReportParams.month,
+          year: monthlyReportParams.year
+        });
+        const response = await fetch(`${API_URL}/analytics/monthly-sales?${queryParams}`);
+        if (!response.ok) throw new Error('Failed to fetch monthly sales data');
+        reportData = await response.json();
+      }
+      
+      // Create a printable HTML structure
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Pet Shop ${type === 'daily' ? 'Daily' : 'Monthly'} Sales Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #22c55e; padding-bottom: 15px; }
+            .section { margin-bottom: 30px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+            .card { border: 1px solid #ddd; padding: 20px; border-radius: 8px; background: #f9fafb; }
+            .card-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #111827; }
+            .amount { font-size: 28px; font-weight: bold; color: #22c55e; margin: 10px 0; }
+            .bills { font-size: 16px; color: #666; margin: 5px 0; }
+            .payment-details { margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
+            .product-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .product-table th { background: #f1f5f9; padding: 12px; text-align: left; border: 1px solid #ddd; }
+            .product-table td { padding: 10px; border: 1px solid #ddd; }
+            .product-table tr:nth-child(even) { background: #f8fafc; }
+            .footer { margin-top: 40px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #eee; padding-top: 20px; }
+            h1, h2, h3 { color: #111827; }
+            .highlight { background: #dcfce7; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Pet Shop ${type === 'daily' ? 'Daily' : 'Monthly'} Sales Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+            ${type === 'daily' ? 
+              `<p>Report for: ${reportData.date ? new Date(reportData.date).toLocaleDateString() : 'Today'}</p>` : 
+              `<p>Report for: ${reportData.month}/${reportData.year}</p>`}
+          </div>
+          
+          <div class="section">
+            <h2>Sales Summary</h2>
+            <div class="grid">
+              <div class="card">
+                <div class="card-title">Total Collection</div>
+                <div class="amount">${formatCurrency(reportData.summary?.total_amount || 0)}</div>
+                <div class="bills">${reportData.summary?.total_bills || 0} bills processed</div>
+                <div class="payment-details">
+                  <p><strong>Payment Methods:</strong></p>
+                  <p>Cash: ${formatCurrency(reportData.summary?.cash_amount || 0)}</p>
+                  <p>Online: ${formatCurrency(reportData.summary?.online_amount || 0)}</p>
+                </div>
+              </div>
+              
+              <div class="card">
+                <div class="card-title">Products Sold</div>
+                <div class="amount">${reportData.products?.reduce((sum, product) => sum + (product.quantity_sold || 0), 0) || 0} items</div>
+                <div class="bills">${reportData.products?.length || 0} different products</div>
+                <div class="payment-details">
+                  <p><strong>Top Product:</strong></p>
+                  ${reportData.products && reportData.products.length > 0 ? 
+                    `<p>${reportData.products[0].name} (${reportData.products[0].quantity_sold} units)</p>` : 
+                    '<p>No products sold</p>'
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="section">
+            <h2>Detailed Product Sales</h2>
+            ${reportData.products && reportData.products.length > 0 ? `
+              <table class="product-table">
+                <thead>
+                  <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Quantity Sold</th>
+                    <th>Revenue Generated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reportData.products.map(product => `
+                    <tr>
+                      <td>P${product.id}</td>
+                      <td>${product.name}</td>
+                      <td class="highlight">${product.quantity_sold}</td>
+                      <td>${formatCurrency(product.revenue)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : `
+              <p>No products sold during this period.</p>
+            `}
+          </div>
+          
+          <div class="footer">
+            <p>Report generated by Pet Shop Billing System</p>
+            <p>This report includes all sales data for ${type === 'daily' ? 
+              (reportData.date ? new Date(reportData.date).toLocaleDateString() : 'today') : 
+              `${reportData.month}/${reportData.year}`}</p>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              // Optionally close the window after printing
+              // window.close();
+            }
+          <\/script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      showFeedback('success', `${type === 'daily' ? 'Daily' : 'Monthly'} sales report generated successfully.`);
+      
+      // Reset monthly selector state
+      if (type === 'monthly') {
+        setShowMonthlySelector(false);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      showFeedback('error', `Failed to generate ${type} sales report.`);
+    } finally {
+      setPdfDownload({ isGenerating: false, type: null });
+    }
+  }
+
   async function handleDeleteBill(billId) {
     if (!isAdmin || !session?.token) {
       return showFeedback('error', 'Admin login required to delete bills.');
@@ -559,6 +781,27 @@ function formatDateTime(value) {
               >
                 <span style={{ fontSize: '1rem' }}>◧</span> Analytics
               </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setActivePage('low-stock')}
+                  style={{ 
+                    padding: '8px 16px',
+                    borderRadius: '7px',
+                    border: 'none',
+                    background: activePage === 'low-stock' ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
+                    color: activePage === 'low-stock' ? '#fff' : '#d1d5db',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '1rem' }}>⚠</span> Low Stock
+                </button>
+              )}
             </div>
             <div style={{ width: '300px' }}>
               <input
@@ -941,13 +1184,23 @@ function formatDateTime(value) {
                       {stockLabel(Number(product.stock))}
                     </span>
                     {isAdmin && (
-                      <button
-                        type="button"
-                        className="ghost danger"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        Delete
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
+                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                        >
+                          Update Stock
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost danger"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     )}
                   </div>
                 </li>
@@ -1168,10 +1421,125 @@ function formatDateTime(value) {
               <h2>Analytics Dashboard</h2>
               <p className="muted">Sales insights and performance metrics</p>
             </div>
-            <button className="ghost" onClick={loadAnalytics}>
-              ↻ Refresh
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="ghost"
+                onClick={() => generateAnalyticsPDF('daily')}
+                disabled={pdfDownload.isGenerating && pdfDownload.type === 'daily'}
+              >
+                {pdfDownload.isGenerating && pdfDownload.type === 'daily' ? 'Generating...' : '📥 Daily PDF'}
+              </button>
+              <button 
+                className="ghost"
+                onClick={() => generateAnalyticsPDF('monthly')}
+                disabled={pdfDownload.isGenerating && pdfDownload.type === 'monthly'}
+              >
+                {pdfDownload.isGenerating && pdfDownload.type === 'monthly' ? 'Generating...' : '📥 Monthly PDF'}
+              </button>
+              <button className="ghost" onClick={loadAnalytics}>
+                ↻ Refresh
+              </button>
+            </div>
           </div>
+          
+          {/* Monthly Report Selector Modal */}
+          {showMonthlySelector && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '10px',
+                padding: '24px',
+                width: '100%',
+                maxWidth: '400px',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+              }}>
+                <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Select Month and Year</h3>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                    Month
+                  </label>
+                  <select
+                    value={monthlyReportParams.month}
+                    onChange={(e) => setMonthlyReportParams(prev => ({
+                      ...prev,
+                      month: parseInt(e.target.value)
+                    }))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => (
+                      <option key={month} value={month}>
+                        {new Date(2020, month - 1, 1).toLocaleString('default', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                    Year
+                  </label>
+                  <select
+                    value={monthlyReportParams.year}
+                    onChange={(e) => setMonthlyReportParams(prev => ({
+                      ...prev,
+                      year: parseInt(e.target.value)
+                    }))}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #d1d5db',
+                      fontSize: '1rem'
+                    }}
+                  >
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="ghost"
+                    onClick={() => {
+                      setShowMonthlySelector(false);
+                      setPdfDownload({ isGenerating: false, type: null });
+                    }}
+                    style={{ padding: '8px 16px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => generateAnalyticsPDF('monthly')}
+                    style={{ padding: '8px 16px' }}
+                  >
+                    Generate Report
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
             <article style={{ padding: '16px', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
@@ -1231,6 +1599,74 @@ function formatDateTime(value) {
           </div>
         </section>
       </main>
+      )}
+
+      {activePage === 'low-stock' && isAdmin && (
+        <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', width: '100%' }}>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Low Stock Alert</h2>
+                <p className="muted">Products with less than 10 items in stock</p>
+              </div>
+              <button className="ghost" onClick={loadProducts}>
+                ↻ Refresh
+              </button>
+            </div>
+            
+            {loading ? (
+              <p className="muted">Loading products…</p>
+            ) : (
+              <>
+                {products.filter(product => Number(product.stock) < 10).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <p className="muted">🎉 All products have sufficient stock!</p>
+                  </div>
+                ) : (
+                  <ul className="product-list">
+                    {products
+                      .filter(product => Number(product.stock) < 10)
+                      .sort((a, b) => Number(a.stock) - Number(b.stock))
+                      .map((product) => (
+                        <li key={product.id} className="product-card">
+                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            {product.image_url && (
+                              <img 
+                                src={product.image_url} 
+                                alt={product.name} 
+                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            )}
+                            <div>
+                              <h3>P{product.id} - {product.name}</h3>
+                              <p className="muted">{formatCurrency(product.price)}</p>
+                            </div>
+                          </div>
+                          <div className="product-meta">
+                            <span
+                              className={`stock ${product.stock === 0 ? 'danger' : 'warn'}`}
+                            >
+                              {stockLabel(Number(product.stock))}
+                            </span>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
+                              style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                            >
+                              Update Stock
+                            </button>
+                          </div>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                )}
+              </>
+            )}
+          </section>
+        </main>
       )}
 
       {printableBill && (
@@ -1302,6 +1738,89 @@ function formatDateTime(value) {
             <button type="button" className="ghost" onClick={closePrintPreview}>
               Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Update Modal */}
+      {stockUpdateModal.isOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '10px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '400px',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Update Stock</h3>
+            <p style={{ color: '#6b7280', marginBottom: '20px' }}>
+              Product: <strong>{stockUpdateModal.productName || 'Unknown Product'}</strong>
+            </p>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                New Stock Quantity
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={stockUpdateModal.newStock}
+                onChange={(e) => setStockUpdateModal(prev => ({
+                  ...prev,
+                  newStock: e.target.value
+                }))}
+                onWheel={(e) => e.target.blur()}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '1rem'
+                }}
+                placeholder="Enter new stock quantity"
+                autoFocus
+              />
+              <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: '6px' }}>
+                Current stock: {stockUpdateModal.currentStock}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => setStockUpdateModal({
+                  isOpen: false,
+                  productId: null,
+                  productName: '',
+                  currentStock: 0,
+                  newStock: ''
+                })}
+                style={{ padding: '8px 16px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={submitStockUpdate}
+                style={{ padding: '8px 16px' }}
+              >
+                Update Stock
+              </button>
+            </div>
           </div>
         </div>
       )}

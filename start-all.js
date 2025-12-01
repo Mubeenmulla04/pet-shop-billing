@@ -1,5 +1,27 @@
 #!/usr/bin/env node
 
+// In production environments, we don't need to run the full development stack
+if (process.env.NODE_ENV === 'production') {
+  console.log('🚀 Starting Pet Shop Billing Application in Production Mode...');
+  console.log('Starting backend server only...');
+  
+  // Just start the backend server
+  const { spawn } = require('child_process');
+  const backendProcess = spawn('node', ['src/index.js'], { 
+    cwd: './backend',
+    stdio: 'inherit',
+    shell: true
+  });
+  
+  process.on('SIGINT', () => {
+    console.log('\n🛑 Shutting down services...');
+    backendProcess.kill();
+    process.exit(0);
+  });
+  
+  return;
+}
+
 const { spawn } = require('child_process');
 const path = require('path');
 

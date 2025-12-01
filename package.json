@@ -7,8 +7,12 @@
     "start": "node start-all.js",
     "dev": "node start-all.js",
     "setup": "cd backend && node scripts/migrate.js",
-    "backend": "cd backend && npm start",
-    "frontend": "cd frontend && npm run dev"
+    "start:prod": "NODE_ENV=production node start-all.js",
+    "build": "cd frontend && npm install && npm run build",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "vercel-build": "cd frontend && npm install && npm run build",
+    "postinstall": "cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": [
     "billing",
@@ -19,5 +23,8 @@
     "postgresql"
   ],
   "author": "MD_SAAD",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^7.2.4"
+  }
 }

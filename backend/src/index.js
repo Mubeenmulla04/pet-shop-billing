@@ -18,6 +18,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Register routes
 app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/bills', billsRouter);
@@ -29,4 +30,3 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`API server listening on http://localhost:${PORT}`);
 });
-
