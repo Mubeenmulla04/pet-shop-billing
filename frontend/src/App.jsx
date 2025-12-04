@@ -3,6 +3,7 @@ import './App.css';
 import PasswordProtection from './PasswordProtection';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+console.log("API_URL:", API_URL);
 
 const currencyFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -21,6 +22,9 @@ function App() {
   if (!isAuthenticated) {
     return <PasswordProtection onAccessGranted={() => setIsAuthenticated(true)} />;
   }
+  
+  // Add console log to verify the main app is rendering
+  console.log("Main application is rendering");
   
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +79,22 @@ function App() {
   const printRef = useRef(null);
 
   useEffect(() => {
+    console.log("Initializing app data...");
+    
+    // Test API connectivity
+    fetch(`${API_URL}/health`)
+      .then(response => {
+        console.log("Health check response:", response);
+        if (response.ok) {
+          console.log("API is accessible");
+        } else {
+          console.log("API health check failed");
+        }
+      })
+      .catch(error => {
+        console.error("API health check error:", error);
+      });
+    
     loadProducts();
     loadRecentBills();
     loadAnalytics();
@@ -199,16 +219,19 @@ function formatDateTime(value) {
   }
 
   async function loadProducts() {
+    console.log("Loading products...");
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/products`);
+      console.log("Products response:", response);
       if (!response.ok) {
         throw new Error('Failed to load products');
       }
       const data = await response.json();
+      console.log("Products data:", data);
       setProducts(data);
     } catch (error) {
-      console.error(error);
+      console.error("Error loading products:", error);
       showFeedback('error', error.message);
     } finally {
       setLoading(false);
@@ -652,6 +675,10 @@ function formatDateTime(value) {
 
   return (
     <div className="app-shell">
+      {/* Visible indicator that the main app is rendering */}
+      <div style={{position: 'fixed', top: 0, left: 0, background: 'green', color: 'white', padding: '10px', zIndex: 9999}}>
+        Main App Loaded
+      </div>
       <header className="hero" style={{ background: 'linear-gradient(135deg, #1f2937 0%, #374151 100%)', borderRadius: '0', marginBottom: '0', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
         <nav className="top-bar" style={{ padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div>
