@@ -35,12 +35,17 @@ router.get('/', async (_req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { customerName, items, paymentMode, customTotal } = req.body;
+  let { customerName, items, paymentMode, customTotal } = req.body;
 
-  if (!customerName || !Array.isArray(items) || items.length === 0) {
+  // Make customer name optional
+  if (!customerName || customerName.trim() === '') {
+    customerName = 'Anonymous Customer';
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
     return res
       .status(400)
-      .json({ error: 'Customer name and at least one item are required.' });
+      .json({ error: 'At least one item is required.' });
   }
 
   const validPaymentModes = ['cash', 'online'];
