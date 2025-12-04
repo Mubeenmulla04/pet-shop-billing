@@ -180,6 +180,8 @@ function formatDateTime(value) {
     }
   }
 
+  
+
   function handleLogout() {
     persistSession(null);
     setCredentials({ username: '', password: '' });
