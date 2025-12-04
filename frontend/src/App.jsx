@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
+import PasswordProtection from './PasswordProtection';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -13,6 +14,14 @@ function formatCurrency(value) {
 }
 
 function App() {
+  // Password protection state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // If not authenticated, show password protection screen
+  if (!isAuthenticated) {
+    return <PasswordProtection onAccessGranted={() => setIsAuthenticated(true)} />;
+  }
+  
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
@@ -561,7 +570,7 @@ function formatDateTime(value) {
       typeof window === 'undefined'
         ? true
         : window.confirm(
-            `Delete bill for ${bill.customer_name}? This action cannot be undone.`
+            `Delete bill for ${bill.customer_name || 'Customer'}? This action cannot be undone.`
           );
     if (!confirmed) {
       return;
@@ -592,14 +601,10 @@ function formatDateTime(value) {
   async function handleCreateBill(event) {
     event.preventDefault();
 
-    if (!customerName.trim()) {
-      return showFeedback('error', 'Customer name is required.');
-    }
-
+    // Customer name is now optional
     if (billItems.length === 0) {
       return showFeedback('error', 'Add at least one product to the bill.');
     }
-
     setSubmitting(true);
     try {
       const response = await fetch(`${API_URL}/bills`, {
@@ -891,22 +896,20 @@ function formatDateTime(value) {
 
           <form className="form" onSubmit={handleCreateBill}>
             <label>
-              Customer Name
+              Customer Name (Optional)
               <input
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter customer name"
-                required
+                placeholder="Enter customer name (optional)"
               />
             </label>
-
             <div style={{ overflowX: 'auto', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
                     <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Image</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}></th>
                     <th style={{ padding: '12px 8px', textAlign: 'left' }}>Product Name</th>
                     <th style={{ padding: '12px 8px', textAlign: 'left' }}>Price</th>
                     <th style={{ padding: '12px 8px', textAlign: 'left' }}>Stock</th>
@@ -1070,7 +1073,7 @@ function formatDateTime(value) {
             <div className="summary" style={{ marginTop: '24px', padding: '20px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
               <h3>✅ Bill Created Successfully!</h3>
               <p>
-                <strong>{billSummary.bill.customer_name}</strong> · {new Date(billSummary.bill.created_at).toLocaleString()}
+                <strong>{billSummary.bill.customer_name || 'Customer'}</strong> · {new Date(billSummary.bill.created_at).toLocaleString()}
               </p>
               <p className="total" style={{ fontSize: '1.5rem', color: '#22c55e', margin: '12px 0' }}>
                 Total: {formatCurrency(billSummary.bill.total)}
@@ -1310,7 +1313,7 @@ function formatDateTime(value) {
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                     <div>
-                      <strong style={{ fontSize: '1.2rem', color: '#111827' }}>{bill.customer_name}</strong>
+                      <strong style={{ fontSize: '1.2rem', color: '#111827' }}>{bill.customer_name || 'Customer'}</strong>
                       <p className="muted" style={{ margin: '4px 0', fontSize: '0.9rem' }}>
                         {new Date(bill.created_at).toLocaleString()}
                       </p>
@@ -1663,7 +1666,7 @@ function formatDateTime(value) {
 
             <section className="invoice-section">
               <p>
-                <strong>Bill to:</strong> {printableBill.customer_name}
+                <strong>Bill to:</strong> {printableBill.customer_name || 'Customer'}
               </p>
               <p>
                 <strong>Store:</strong> WhiskerWorks Pet Supplies, Bengaluru

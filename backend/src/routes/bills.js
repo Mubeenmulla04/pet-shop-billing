@@ -37,12 +37,11 @@ router.get('/', async (_req, res) => {
 router.post('/', async (req, res) => {
   const { customerName, items, paymentMode, customTotal } = req.body;
 
-  if (!customerName || !Array.isArray(items) || items.length === 0) {
+  if (!Array.isArray(items) || items.length === 0) {
     return res
       .status(400)
-      .json({ error: 'Customer name and at least one item are required.' });
+      .json({ error: 'At least one item is required.' });
   }
-
   const validPaymentModes = ['cash', 'online'];
   const payment_mode = validPaymentModes.includes(paymentMode) ? paymentMode : 'cash';
 
@@ -53,9 +52,8 @@ router.post('/', async (req, res) => {
 
     const billResult = await client.query(
       'INSERT INTO bills (customer_name, total, payment_mode) VALUES ($1, 0, $2) RETURNING *',
-      [customerName.trim(), payment_mode]
+      [customerName ? customerName.trim() : 'Customer', payment_mode]
     );
-
     const bill = billResult.rows[0];
     let total = 0;
     const createdItems = [];
