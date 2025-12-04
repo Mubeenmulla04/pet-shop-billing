@@ -110,7 +110,6 @@ const PasswordProtection = ({ onAccessGranted }) => {
           marginTop: '20px',
           fontStyle: 'italic'
         }}>
-          Hint: The password is 902155
         </p>
       </div>
     </div>
