@@ -31,7 +31,7 @@ function App() {
   const [recentBills, setRecentBills] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics, low-stock, stock-updates
+  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics, low-stock
   const [analytics, setAnalytics] = useState({
     today: null,
     monthly: null,
@@ -782,30 +782,6 @@ function formatDateTime(value) {
                   <span style={{ fontSize: '1rem' }}>⚠</span> Low Stock
                 </button>
               )}
-              {isAdmin && (
-                <button 
-                  onClick={() => {
-                    setActivePage('stock-updates');
-                    loadStockUpdates();
-                  }}
-                  style={{ 
-                    padding: '8px 16px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    background: activePage === 'stock-updates' ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
-                    color: activePage === 'stock-updates' ? '#fff' : '#d1d5db',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <span style={{ fontSize: '1rem' }}>📈</span> Stock Updates
-                </button>
-              )}
             </div>
             <div style={{ width: '300px' }}>
               <input
@@ -1041,8 +1017,7 @@ function formatDateTime(value) {
                                     setBillItems([...billItems, {
                                       productId: product.id,
                                       name: product.name,
-                                      image_url: product.image_url,
-                                      price: Number(product.price),
+                                      price: product.price,
                                       quantity: 1,
                                     }]);
                                   } else {
@@ -1055,8 +1030,7 @@ function formatDateTime(value) {
                                   }
                                   setCustomTotal('');
                                 }}
-                                disabled={product.stock === 0}
-                                style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#22c55e', cursor: product.stock === 0 ? 'not-allowed' : 'pointer' }}
+                                style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#22c55e', cursor: 'pointer' }}
                               >
                                 +
                               </button>
@@ -1069,36 +1043,13 @@ function formatDateTime(value) {
               </table>
             </div>
 
-            <div style={{ marginTop: '24px', padding: '20px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-              <h3>Bill Summary</h3>
-              {billItems.length === 0 ? (
-                <p className="muted">No items added yet</p>
-              ) : (
-                <div>
-                  {billItems.map((item) => (
-                    <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span>{item.name} x{item.quantity}</span>
-                      <span>{formatCurrency(item.price * item.quantity)}</span>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', paddingTop: '16px', borderTop: '2px solid rgba(255,255,255,0.1)', fontSize: '1.2rem', fontWeight: 'bold' }}>
-                    <span>Total:</span>
-                    <span style={{ color: '#22c55e' }}>{formatCurrency(billTotal)}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <label>
-              Custom Amount (optional)
+              Custom Total (Optional)
               <input
                 type="number"
-                min="0"
-                step="0.01"
                 value={customTotal}
                 onChange={(e) => setCustomTotal(e.target.value)}
-                onWheel={(e) => e.target.blur()}
-                placeholder="Leave empty to use calculated total"
+                placeholder="Enter custom total (optional)"
               />
             </label>
 
@@ -1113,518 +1064,325 @@ function formatDateTime(value) {
               </select>
             </label>
 
-            <button type="submit" className="primary" disabled={submitting || billItems.length === 0}>
-              {submitting ? 'Creating bill…' : 'Create bill'}
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Creating bill...' : 'Create Bill'}
             </button>
           </form>
+        </section>
 
-          {billSummary && (
-            <div className="summary" style={{ marginTop: '24px', padding: '20px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-              <h3>✅ Bill Created Successfully!</h3>
-              <p>
-                <strong>{billSummary.bill.customer_name}</strong> · {new Date(billSummary.bill.created_at).toLocaleString()}
-              </p>
-              <p className="total" style={{ fontSize: '1.5rem', color: '#22c55e', margin: '12px 0' }}>
-                Total: {formatCurrency(billSummary.bill.total)}
-              </p>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => openPrintPreview(billSummary)}
-              >
-                Print Invoice
+        {billSummary && (
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Bill Summary</h2>
+                <p className="muted">Review and confirm the bill details</p>
+              </div>
+              <button className="ghost" onClick={() => setBillSummary(null)}>
+                <span style={{ fontSize: '1rem' }}>🗑</span> Clear
               </button>
             </div>
-          )}
-        </section>
+
+            <div className="bill-summary">
+              <div className="bill-summary-item">
+                <strong>Customer Name:</strong>
+                <span>{billSummary.customer_name}</span>
+              </div>
+              <div className="bill-summary-item">
+                <strong>Total Amount:</strong>
+                <span>{formatCurrency(billSummary.total)}</span>
+              </div>
+              <div className="bill-summary-item">
+                <strong>Payment Mode:</strong>
+                <span>{billSummary.payment_mode}</span>
+              </div>
+              <div className="bill-summary-item">
+                <strong>Items:</strong>
+                <ul>
+                  {billSummary.items.map((item) => (
+                    <li key={item.product_id}>
+                      <strong>P{item.product_id}</strong> - {item.name} (Qty: {item.quantity})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="bill-summary-item">
+                <strong>Date:</strong>
+                <span>{formatDateTime(billSummary.created_at)}</span>
+              </div>
+            </div>
+
+            <button className="primary" onClick={() => openPrintPreview(billSummary)}>
+              <span style={{ fontSize: '1rem' }}>⎙</span> Print Invoice
+            </button>
+          </section>
+        )}
       </main>
       )}
 
       {activePage === 'inventory' && isAdmin && (
         <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', width: '100%' }}>
-        <section className="panel inventory-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Inventory</h2>
-              <p className="muted">Real-time stock insights</p>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Inventory Management</h2>
+                <p className="muted">Add, update, or delete products</p>
+              </div>
+              <button className="ghost" onClick={loadProducts}>
+                <span style={{ fontSize: '1rem' }}>↻</span> Refresh
+              </button>
             </div>
-            <button className="ghost" onClick={loadProducts} disabled={loading}>
-              ↻
-            </button>
-          </div>
-          {loading ? (
-            <p className="muted">Loading products…</p>
-          ) : products.length === 0 ? (
-            <p className="muted">No products yet. Add your first item below.</p>
-          ) : (
-            <ul className="product-list">
-              {products
-                .filter((product) => 
-                  searchQuery === '' || 
-                  product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  product.id.toString() === searchQuery
-                )
-                .map((product) => (
-                <li key={product.id} className="product-card">
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {product.image_url && (
-                      <img 
-                        src={product.image_url} 
-                        alt={product.name} 
-                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    )}
-                    <div>
-                      <h3>P{product.id} - {product.name}</h3>
-                      <p className="muted">{formatCurrency(product.price)}</p>
-                    </div>
-                  </div>
-                  <div className="product-meta">
-                    <span
-                      className={`stock ${product.stock === 0 ? 'danger' : product.stock < 10 ? 'warn' : ''}`}
-                    >
-                      {stockLabel(Number(product.stock))}
-                    </span>
-                    {isAdmin && (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
-                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                        >
-                          Update Stock
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          onClick={() => handleDeleteProduct(product.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
 
-          <form className="form" onSubmit={handleAddProduct}>
-            <h3>Add product</h3>
-            {!isAdmin && (
-              <p className="muted note">
-                Admin login required to add or edit inventory items.
-              </p>
-            )}
-            <div className="form-grid">
+            <form className="form" onSubmit={handleAddProduct}>
               <label>
-                Name
+                Product Name
                 <input
                   type="text"
                   value={newProduct.name}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    setNewProduct((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  placeholder="Puppy food"
-                  title={!isAdmin ? 'Admin login required' : undefined}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  placeholder="Enter product name"
                 />
               </label>
+
               <label>
                 Price
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
                   value={newProduct.price}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    setNewProduct((prev) => ({
-                      ...prev,
-                      price: e.target.value,
-                    }))
-                  }
-                  onWheel={(e) => e.target.blur()}
-                  placeholder="350"
-                  title={!isAdmin ? 'Admin login required' : undefined}
+                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                  placeholder="Enter product price"
                 />
               </label>
+
               <label>
                 Stock
                 <input
                   type="number"
-                  min="0"
                   value={newProduct.stock}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    setNewProduct((prev) => ({
-                      ...prev,
-                      stock: e.target.value,
-                    }))
-                  }
-                  onWheel={(e) => e.target.blur()}
-                  placeholder="25"
-                  title={!isAdmin ? 'Admin login required' : undefined}
+                  onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                  placeholder="Enter product stock"
                 />
               </label>
+
               <label>
-                Product Image URL
+                Image URL (Optional)
                 <input
                   type="text"
                   value={newProduct.image_url}
-                  disabled={!isAdmin}
-                  onChange={(e) =>
-                    setNewProduct((prev) => ({
-                      ...prev,
-                      image_url: e.target.value,
-                    }))
-                  }
-                  placeholder="https://example.com/image.jpg"
-                  title={!isAdmin ? 'Admin login required' : undefined}
+                  onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })}
+                  placeholder="Enter image URL (optional)"
                 />
-                {newProduct.image_url && (
-                  <div style={{ marginTop: '8px' }}>
-                    <p className="muted">Preview:</p>
-                    <img 
-                      src={newProduct.image_url} 
-                      alt="Preview" 
-                      style={{ 
-                        maxWidth: '100px', 
-                        maxHeight: '100px', 
-                        objectFit: 'cover', 
-                        borderRadius: '4px',
-                        border: '1px solid #ddd'
-                      }}
-                      onError={(e) => { 
-                        e.target.style.display = 'none'; 
-                      }}
-                    />
-                  </div>
-                )}
               </label>
+
+              <button type="submit">
+                <span style={{ fontSize: '1rem' }}>+</span> Add Product
+              </button>
+            </form>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Image</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Product Name</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Price</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Stock</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <tr key={product.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '12px 8px' }}>P{product.id}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {product.image_url ? (
+                          <img 
+                            src={product.image_url} 
+                            alt={product.name}
+                            style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div style={{ width: '50px', height: '50px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>No img</div>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong>{product.name}</strong>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {formatCurrency(product.price)}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span className={product.stock === 0 ? 'danger' : product.stock < 10 ? 'warn' : ''}>
+                          {product.stock}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
+                            style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#22c55e', cursor: 'pointer' }}
+                          >
+                            <span style={{ fontSize: '1rem' }}>+</span> Update Stock
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(product.id)}
+                            style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.5)', color: '#ef4444', cursor: 'pointer' }}
+                          >
+                            <span style={{ fontSize: '1rem' }}>🗑</span> Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <button
-              type="submit"
-              className="primary"
-              disabled={!isAdmin}
-              title={!isAdmin ? 'Admin login required' : undefined}
-            >
-              Save product
-            </button>
-          </form>
-        </section>
-      </main>
+          </section>
+        </main>
       )}
 
       {activePage === 'history' && (
         <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', width: '100%' }}>
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Bill History</h2>
-              <p className="muted">View all previous bills and transactions</p>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Bill History</h2>
+                <p className="muted">Recently created bills</p>
+              </div>
+              <button className="ghost" onClick={loadRecentBills}>
+                <span style={{ fontSize: '1rem' }}>↻</span> Refresh
+              </button>
             </div>
-            <button className="ghost" onClick={loadRecentBills}>
-              ↻ Refresh
-            </button>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <input
-              type="text"
-              placeholder="Search by customer name..."
-              value={customerSearchQuery}
-              onChange={(e) => setCustomerSearchQuery(e.target.value)}
-              style={{ width: '100%', maxWidth: '400px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem' }}
-            />
-          </div>
-
-          {recentBills.length === 0 ? (
-            <p className="muted">No bills yet.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: '16px' }}>
-              {recentBills
-                .filter((bill) => 
-                  customerSearchQuery === '' || 
-                  bill.customer_name.toLowerCase().includes(customerSearchQuery.toLowerCase())
-                )
-                .map((bill) => (
-                <article key={bill.id} style={{ 
-                  padding: '20px', 
-                  background: '#f9fafb', 
-                  borderRadius: '10px',
-                  border: '1px solid #e5e7eb'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                    <div>
-                      <strong style={{ fontSize: '1.2rem', color: '#111827' }}>{bill.customer_name}</strong>
-                      <p className="muted" style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                        {new Date(bill.created_at).toLocaleString()}
-                      </p>
-                      <span style={{ 
-                        fontSize: '0.85rem', 
-                        padding: '4px 10px', 
-                        borderRadius: '6px',
-                        background: bill.payment_mode === 'cash' ? '#d1fae5' : '#dbeafe',
-                        color: bill.payment_mode === 'cash' ? '#065f46' : '#1e40af',
-                        display: 'inline-block',
-                        marginTop: '6px',
-                        fontWeight: '500'
-                      }}>
-                        {bill.payment_mode === 'cash' ? 'Cash' : 'Online'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#10b981' }}>
-                        {formatCurrency(bill.total)}
-                      </span>
-                      {bill.items && bill.items.length > 0 && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          onClick={() => openPrintPreview(bill)}
-                          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                        >
-                          Print
-                        </button>
-                      )}
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          onClick={() => handleDeleteBill(bill.id)}
-                          style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {bill.items && bill.items.length > 0 && (
-                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
-                      <p style={{ fontWeight: '600', marginBottom: '10px', color: '#374151', fontSize: '0.9rem' }}>Products Purchased:</p>
-                      <div style={{ display: 'grid', gap: '8px' }}>
-                        {bill.items.map((item) => (
-                          <div key={item.id} style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            padding: '10px 12px',
-                            background: '#fff',
-                            borderRadius: '6px',
-                            border: '1px solid #e5e7eb',
-                            fontSize: '0.9rem'
-                          }}>
-                            <span style={{ color: '#374151' }}>
-                              <strong>{item.productname || item.productName}</strong> × {item.quantity}
-                            </span>
-                            <span style={{ color: '#6b7280' }}>
-                              {formatCurrency(item.price)} each = <strong style={{ color: '#111827' }}>{formatCurrency(item.price * item.quantity)}</strong>
-                            </span>
+            
+            {recentBills.length === 0 ? (
+              <p className="muted">No bills created yet.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Customer Name</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Total Amount</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Payment Mode</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Date</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentBills.map((bill) => (
+                      <tr key={bill.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '12px 8px' }}>B{bill.id}</td>
+                        <td style={{ padding: '12px 8px' }}>
+                          <strong>{bill.customer_name}</strong>
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {formatCurrency(bill.total)}
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {bill.payment_mode}
+                        </td>
+                        <td style={{ padding: '12px 8px' }}>
+                          {formatDateTime(bill.created_at)}
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => openPrintPreview(bill)}
+                              style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#22c55e', cursor: 'pointer' }}
+                            >
+                              <span style={{ fontSize: '1rem' }}>⎙</span> Print Invoice
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBill(bill.id)}
+                              style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.5)', color: '#ef4444', cursor: 'pointer' }}
+                            >
+                              <span style={{ fontSize: '1rem' }}>🗑</span> Delete
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
       )}
 
-      {activePage === 'analytics' && (
+      {activePage === 'analytics' && isAdmin && (
         <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', width: '100%' }}>
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <h2>Analytics Dashboard</h2>
-              <p className="muted">Sales insights and performance metrics</p>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className="ghost"
-                onClick={() => generateAnalyticsPDF('daily')}
-                disabled={pdfDownload.isGenerating && pdfDownload.type === 'daily'}
-              >
-                {pdfDownload.isGenerating && pdfDownload.type === 'daily' ? 'Generating...' : '📥 Daily PDF'}
-              </button>
-              <button 
-                className="ghost"
-                onClick={() => generateAnalyticsPDF('monthly')}
-                disabled={pdfDownload.isGenerating && pdfDownload.type === 'monthly'}
-              >
-                {pdfDownload.isGenerating && pdfDownload.type === 'monthly' ? 'Generating...' : '📥 Monthly PDF'}
-              </button>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Analytics</h2>
+                <p className="muted">Sales and inventory insights</p>
+              </div>
               <button className="ghost" onClick={loadAnalytics}>
-                ↻ Refresh
+                <span style={{ fontSize: '1rem' }}>↻</span> Refresh
               </button>
             </div>
-          </div>
-          
-          {/* Monthly Report Selector Modal */}
-          {showMonthlySelector && (
-            <div style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000
-            }}>
-              <div style={{
-                backgroundColor: 'white',
-                borderRadius: '10px',
-                padding: '24px',
-                width: '100%',
-                maxWidth: '400px',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-              }}>
-                <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Select Month and Year</h3>
-                
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                    Month
-                  </label>
-                  <select
-                    value={monthlyReportParams.month}
-                    onChange={(e) => setMonthlyReportParams(prev => ({
-                      ...prev,
-                      month: parseInt(e.target.value)
-                    }))}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => (
-                      <option key={month} value={month}>
-                        {new Date(2020, month - 1, 1).toLocaleString('default', { month: 'long' })}
-                      </option>
-                    ))}
-                  </select>
+
+            <div className="analytics">
+              <div className="analytics-section">
+                <h3>Today's Sales</h3>
+                <div className="analytics-card">
+                  <div className="analytics-card-title">Total Collection</div>
+                  <div className="analytics-card-amount">{formatCurrency(analytics.today?.total_amount || 0)}</div>
+                  <div className="analytics-card-bills">{analytics.today?.total_bills || 0} bills processed</div>
+                  <div className="analytics-card-payment-details">
+                    <p><strong>Payment Methods:</strong></p>
+                    <p>Cash: {formatCurrency(analytics.today?.cash_amount || 0)}</p>
+                    <p>Online: {formatCurrency(analytics.today?.online_amount || 0)}</p>
+                  </div>
                 </div>
-                
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                    Year
-                  </label>
-                  <select
-                    value={monthlyReportParams.year}
-                    onChange={(e) => setMonthlyReportParams(prev => ({
-                      ...prev,
-                      year: parseInt(e.target.value)
-                    }))}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid #d1d5db',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
+              </div>
+
+              <div className="analytics-section">
+                <h3>Monthly Sales</h3>
+                <div className="analytics-card">
+                  <div className="analytics-card-title">Total Collection</div>
+                  <div className="analytics-card-amount">{formatCurrency(analytics.monthly?.total_amount || 0)}</div>
+                  <div className="analytics-card-bills">{analytics.monthly?.total_bills || 0} bills processed</div>
+                  <div className="analytics-card-payment-details">
+                    <p><strong>Payment Methods:</strong></p>
+                    <p>Cash: {formatCurrency(analytics.monthly?.cash_amount || 0)}</p>
+                    <p>Online: {formatCurrency(analytics.monthly?.online_amount || 0)}</p>
+                  </div>
                 </div>
-                
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className="ghost"
-                    onClick={() => {
-                      setShowMonthlySelector(false);
-                      setPdfDownload({ isGenerating: false, type: null });
-                    }}
-                    style={{ padding: '8px 16px' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => generateAnalyticsPDF('monthly')}
-                    style={{ padding: '8px 16px' }}
-                  >
-                    Generate Report
-                  </button>
+              </div>
+
+              <div className="analytics-section">
+                <h3>Best Selling Products</h3>
+                <div className="analytics-card">
+                  <div className="analytics-card-title">Top Products</div>
+                  <div className="analytics-card-products">
+                    {analytics.bestSelling.map((product) => (
+                      <div key={product.id} className="analytics-card-product">
+                        <strong>P{product.id}</strong> - {product.name} ({product.quantity_sold} units)
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-            <article style={{ padding: '16px', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
-              <p className="muted" style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>Today's Collection</p>
-              <strong style={{ fontSize: '1.8rem', display: 'block', color: '#111827' }}>{formatCurrency(analytics.today?.total_amount || 0)}</strong>
-              <span className="muted" style={{ fontSize: '0.85rem' }}>{analytics.today?.total_bills || 0} bills</span>
-              <div style={{ fontSize: '0.8rem', marginTop: '8px', color: '#6b7280' }}>
-                <div>Cash: {formatCurrency(analytics.today?.cash_amount || 0)}</div>
-                <div>Online: {formatCurrency(analytics.today?.online_amount || 0)}</div>
-              </div>
-            </article>
-            
-            <article style={{ padding: '16px', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
-              <p className="muted" style={{ margin: '0 0 8px 0', fontSize: '0.85rem' }}>Monthly Collection</p>
-              <strong style={{ fontSize: '1.8rem', display: 'block', color: '#111827' }}>{formatCurrency(analytics.monthly?.total_amount || 0)}</strong>
-              <span className="muted" style={{ fontSize: '0.85rem' }}>{analytics.monthly?.total_bills || 0} bills</span>
-              <div style={{ fontSize: '0.8rem', marginTop: '8px', color: '#6b7280' }}>
-                <div>Cash: {formatCurrency(analytics.monthly?.cash_amount || 0)}</div>
-                <div>Online: {formatCurrency(analytics.monthly?.online_amount || 0)}</div>
-              </div>
-            </article>
-          </div>
-
-          <div>
-            <h3>Best Selling Products</h3>
-            {analytics.bestSelling.length === 0 ? (
-              <p className="muted">No sales data available yet.</p>
-            ) : (
-              <ul className="product-list">
-                {analytics.bestSelling.map((product) => (
-                  <li key={product.id} className="product-card">
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      {product.image_url && (
-                        <img 
-                          src={product.image_url} 
-                          alt={product.name} 
-                          style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      )}
-                      <div>
-                        <h3>P{product.id} - {product.name}</h3>
-                        <p className="muted">{formatCurrency(product.price)}</p>
-                      </div>
-                    </div>
-                    <div className="product-meta">
-                      <div>
-                        <div><strong>{product.total_quantity}</strong> units sold</div>
-                        <div><strong>{product.times_sold}</strong> orders</div>
-                        <div>Revenue: <strong>{formatCurrency(product.total_revenue)}</strong></div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </main>
+            <div className="analytics-actions">
+              <button className="primary" onClick={() => generateAnalyticsPDF('daily')}>
+                <span style={{ fontSize: '1rem' }}>⎙</span> Generate Daily Report
+              </button>
+              <button className="primary" onClick={() => generateAnalyticsPDF('monthly')}>
+                <span style={{ fontSize: '1rem' }}>⎙</span> Generate Monthly Report
+              </button>
+            </div>
+          </section>
+        </main>
       )}
 
       {activePage === 'low-stock' && isAdmin && (
@@ -1632,64 +1390,81 @@ function formatDateTime(value) {
           <section className="panel">
             <div className="panel-head">
               <div>
-                <h2>Low Stock Alert</h2>
-                <p className="muted">Products with less than 10 items in stock</p>
+                <h2>Low Stock Products</h2>
+                <p className="muted">Products with low stock levels</p>
               </div>
               <button className="ghost" onClick={loadProducts}>
-                ↻ Refresh
+                <span style={{ fontSize: '1rem' }}>↻</span> Refresh
               </button>
             </div>
             
-            {loading ? (
-              <p className="muted">Loading products…</p>
+            {products.filter(product => product.stock < 10).length === 0 ? (
+              <p className="muted">No products with low stock levels.</p>
             ) : (
-              <>
-                {products.filter(product => Number(product.stock) < 10).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                    <p className="muted">🎉 All products have sufficient stock!</p>
-                  </div>
-                ) : (
-                  <ul className="product-list">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Image</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Product Name</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Price</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Stock</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {products
-                      .filter(product => Number(product.stock) < 10)
-                      .sort((a, b) => Number(a.stock) - Number(b.stock))
+                      .filter(product => product.stock < 10)
                       .map((product) => (
-                        <li key={product.id} className="product-card">
-                          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                            {product.image_url && (
+                        <tr key={product.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '12px 8px' }}>P{product.id}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {product.image_url ? (
                               <img 
                                 src={product.image_url} 
-                                alt={product.name} 
+                                alt={product.name}
                                 style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px' }}
                                 onError={(e) => { e.target.style.display = 'none'; }}
                               />
+                            ) : (
+                              <div style={{ width: '50px', height: '50px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>No img</div>
                             )}
-                            <div>
-                              <h3>P{product.id} - {product.name}</h3>
-                              <p className="muted">{formatCurrency(product.price)}</p>
-                            </div>
-                          </div>
-                          <div className="product-meta">
-                            <span
-                              className={`stock ${product.stock === 0 ? 'danger' : 'warn'}`}
-                            >
-                              {stockLabel(Number(product.stock))}
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <strong>{product.name}</strong>
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {formatCurrency(product.price)}
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <span className={product.stock === 0 ? 'danger' : product.stock < 10 ? 'warn' : ''}>
+                              {product.stock}
                             </span>
-                            <button
-                              type="button"
-                              className="ghost"
-                              onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
-                              style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                            >
-                              Update Stock
-                            </button>
-                          </div>
-                        </li>
-                      ))
-                    }
-                  </ul>
-                )}
-              </>
+                          </td>
+                          <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateStock(product.id, product.stock, product.name)}
+                                style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.5)', color: '#22c55e', cursor: 'pointer' }}
+                              >
+                                <span style={{ fontSize: '1rem' }}>+</span> Update Stock
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                style={{ padding: '4px 12px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.5)', color: '#ef4444', cursor: 'pointer' }}
+                              >
+                                <span style={{ fontSize: '1rem' }}>🗑</span> Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </main>
@@ -1704,7 +1479,7 @@ function formatDateTime(value) {
                 <p className="muted">Recently updated stock quantities</p>
               </div>
               <button className="ghost" onClick={loadStockUpdates}>
-                ↻ Refresh
+                <span style={{ fontSize: '1rem' }}>↻</span> Refresh
               </button>
             </div>
             
@@ -1758,158 +1533,135 @@ function formatDateTime(value) {
         </main>
       )}
 
-      {printableBill && (
-        <div className="print-overlay">
-          <div className="print-card print-target" ref={printRef}>
-            <header className="print-header">
-              <div>
-                <p className="eyebrow">WhiskerWorks</p>
-                <h2>Invoice</h2>
-              </div>
-              <div className="invoice-meta">
-                <p>
-                  <strong>Invoice #</strong> {printableBill.id}
-                </p>
-                <p>
-                  <strong>Date</strong> {formatDateTime(printableBill.created_at)}
-                </p>
-              </div>
-            </header>
-
-            <section className="invoice-section">
-              <p>
-                <strong>Bill to:</strong> {printableBill.customer_name}
-              </p>
-              <p>
-                <strong>Store:</strong> WhiskerWorks Pet Supplies, Bengaluru
-              </p>
-            </section>
-
-            <table className="invoice-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Quantity</th>
-                  <th>Price</th>
-                  <th>Line total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {printableBill.items?.map((item) => {
-                  const lineTotal =
-                    Number(item.price || 0) * Number(item.quantity || 0);
-                  return (
-                    <tr key={item.id || item.productId}>
-                      <td>{item.productName || item.name}</td>
-                      <td>{item.quantity}</td>
-                      <td>{formatCurrency(item.price)}</td>
-                      <td>{formatCurrency(lineTotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div className="invoice-summary">
-              <span>Total due</span>
-              <strong>{formatCurrency(printableBill.total)}</strong>
-            </div>
-
-            <p className="muted">
-              Thank you for shopping with us! Please contact us for any
-              questions regarding this invoice.
-            </p>
-          </div>
-          <div className="print-controls no-print">
-            <button type="button" className="secondary" onClick={handlePrintInvoice}>
-              Print invoice
-            </button>
-            <button type="button" className="ghost" onClick={closePrintPreview}>
-              Close
+      {stockUpdateModal.isOpen && (
+        <div className="modal-overlay" onClick={() => setStockUpdateModal({ isOpen: false, productId: null, productName: '', currentStock: 0, newStock: '' })}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Update Stock for {stockUpdateModal.productName}</h2>
+            <p>Current Stock: {stockUpdateModal.currentStock}</p>
+            <label>
+              New Stock
+              <input
+                type="number"
+                value={stockUpdateModal.newStock}
+                onChange={(e) => setStockUpdateModal({ ...stockUpdateModal, newStock: e.target.value })}
+                placeholder="Enter new stock quantity"
+              />
+            </label>
+            <button className="primary" onClick={submitStockUpdate}>
+              <span style={{ fontSize: '1rem' }}>+</span> Update Stock
             </button>
           </div>
         </div>
       )}
 
-      {/* Stock Update Modal */}
-      {stockUpdateModal.isOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '10px',
-            padding: '24px',
-            width: '100%',
-            maxWidth: '400px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Update Stock</h3>
-            <p style={{ color: '#6b7280', marginBottom: '20px' }}>
-              Product: <strong>{stockUpdateModal.productName || 'Unknown Product'}</strong>
-            </p>
-            
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                New Stock Quantity
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={stockUpdateModal.newStock}
-                onChange={(e) => setStockUpdateModal(prev => ({
-                  ...prev,
-                  newStock: e.target.value
-                }))}
-                onWheel={(e) => e.target.blur()}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '1rem'
-                }}
-                placeholder="Enter new stock quantity"
-                autoFocus
-              />
-              <p style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: '6px' }}>
-                Current stock: {stockUpdateModal.currentStock}
-              </p>
+      {printableBill && (
+        <div className="print-preview" ref={printRef}>
+          <div className="print-header">
+            <h1>Pet Shop Invoice</h1>
+            <p>Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+          </div>
+          <div className="print-body">
+            <div className="print-section">
+              <h2>Bill Details</h2>
+              <div className="print-item">
+                <strong>ID:</strong>
+                <span>B{printableBill.id}</span>
+              </div>
+              <div className="print-item">
+                <strong>Customer Name:</strong>
+                <span>{printableBill.customer_name}</span>
+              </div>
+              <div className="print-item">
+                <strong>Total Amount:</strong>
+                <span>{formatCurrency(printableBill.total)}</span>
+              </div>
+              <div className="print-item">
+                <strong>Payment Mode:</strong>
+                <span>{printableBill.payment_mode}</span>
+              </div>
+              <div className="print-item">
+                <strong>Date:</strong>
+                <span>{formatDateTime(printableBill.created_at)}</span>
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => setStockUpdateModal({
-                  isOpen: false,
-                  productId: null,
-                  productName: '',
-                  currentStock: 0,
-                  newStock: ''
-                })}
-                style={{ padding: '8px 16px' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="primary"
-                onClick={submitStockUpdate}
-                style={{ padding: '8px 16px' }}
-              >
-                Update Stock
-              </button>
+            <div className="print-section">
+              <h2>Items</h2>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>ID</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Product Name</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Price</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Quantity</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'left' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printableBill.items.map((item) => (
+                    <tr key={item.product_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '12px 8px' }}>P{item.product_id}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <strong>{item.name}</strong>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {formatCurrency(item.price)}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {item.quantity}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {formatCurrency(item.price * item.quantity)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </div>
+          <div className="print-footer">
+            <p>Thank you for shopping with us!</p>
+          </div>
+        </div>
+      )}
+
+      {pdfDownload.isGenerating && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Generating {pdfDownload.type === 'daily' ? 'Daily' : 'Monthly'} Sales Report</h2>
+            <p>Please wait while we prepare your report...</p>
+          </div>
+        </div>
+      )}
+
+      {showMonthlySelector && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h2>Select Month and Year for Monthly Sales Report</h2>
+            <label>
+              Month
+              <select
+                value={monthlyReportParams.month}
+                onChange={(e) => setMonthlyReportParams({ ...monthlyReportParams, month: parseInt(e.target.value) })}
+              >
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{i + 1}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Year
+              <select
+                value={monthlyReportParams.year}
+                onChange={(e) => setMonthlyReportParams({ ...monthlyReportParams, year: parseInt(e.target.value) })}
+              >
+                {Array.from({ length: 10 }, (_, i) => (
+                  <option key={new Date().getFullYear() - i} value={new Date().getFullYear() - i}>{new Date().getFullYear() - i}</option>
+                ))}
+              </select>
+            </label>
+            <button className="primary" onClick={() => generateAnalyticsPDF('monthly')}>
+              <span style={{ fontSize: '1rem' }}>⎙</span> Generate Report
+            </button>
           </div>
         </div>
       )}
