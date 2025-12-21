@@ -31,12 +31,13 @@ function App() {
   const [recentBills, setRecentBills] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics, low-stock
+  const [activePage, setActivePage] = useState('billing'); // billing, inventory, history, analytics, low-stock, stock-updates
   const [analytics, setAnalytics] = useState({
     today: null,
     monthly: null,
     bestSelling: [],
   });
+  const [stockUpdates, setStockUpdates] = useState([]);
   const [session, setSession] = useState(null);
   const [credentials, setCredentials] = useState({
     username: '',
@@ -69,6 +70,7 @@ function App() {
     loadProducts();
     loadRecentBills();
     loadAnalytics();
+    loadStockUpdates();
   }, []);
 
   useEffect(() => {
@@ -238,6 +240,29 @@ function formatDateTime(value) {
       setAnalytics({ today, monthly, bestSelling });
     } catch (error) {
       console.error('Failed to load analytics', error);
+    }
+  }
+
+  async function loadStockUpdates() {
+    if (!isAdmin || !session?.token) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/stock-updates`, {
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load stock updates');
+      }
+      
+      const data = await response.json();
+      setStockUpdates(data);
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -755,6 +780,30 @@ function formatDateTime(value) {
                   }}
                 >
                   <span style={{ fontSize: '1rem' }}>⚠</span> Low Stock
+                </button>
+              )}
+              {isAdmin && (
+                <button 
+                  onClick={() => {
+                    setActivePage('stock-updates');
+                    loadStockUpdates();
+                  }}
+                  style={{ 
+                    padding: '8px 16px',
+                    borderRadius: '7px',
+                    border: 'none',
+                    background: activePage === 'stock-updates' ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' : 'transparent',
+                    color: activePage === 'stock-updates' ? '#fff' : '#d1d5db',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '1rem' }}>📈</span> Stock Updates
                 </button>
               )}
             </div>
@@ -1641,6 +1690,69 @@ function formatDateTime(value) {
                   </ul>
                 )}
               </>
+            )}
+          </section>
+        </main>
+      )}
+
+      {activePage === 'stock-updates' && isAdmin && (
+        <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', width: '100%' }}>
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h2>Stock Update History</h2>
+                <p className="muted">Recently updated stock quantities</p>
+              </div>
+              <button className="ghost" onClick={loadStockUpdates}>
+                ↻ Refresh
+              </button>
+            </div>
+            
+            {stockUpdates.length === 0 ? (
+              <p className="muted">No stock updates recorded yet.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid rgba(255,255,255,0.1)' }}>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Product</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Old Stock</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>New Stock</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Change</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Updated By</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left' }}>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockUpdates.map((update) => {
+                      const change = update.new_stock - update.old_stock;
+                      const isIncrease = change > 0;
+                      
+                      return (
+                        <tr key={update.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '12px 8px' }}>
+                            <strong>P{update.product_id}</strong> - {update.product_name}
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>{update.old_stock}</td>
+                          <td style={{ padding: '12px 8px' }}>{update.new_stock}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <span style={{ 
+                              color: isIncrease ? '#22c55e' : '#ef4444',
+                              fontWeight: 'bold'
+                            }}>
+                              {isIncrease ? '+' : ''}{change}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>{update.updated_by}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {new Date(update.created_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </main>

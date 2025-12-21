@@ -8,6 +8,7 @@ const productsRouter = require('./routes/products');
 const billsRouter = require('./routes/bills');
 const authRouter = require('./routes/auth');
 const analyticsRouter = require('./routes/analytics');
+const stockUpdatesRouter = require('./routes/stockUpdates');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/bills', billsRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/stock-updates', stockUpdatesRouter);
 
 const PORT = process.env.PORT || 4000;
 

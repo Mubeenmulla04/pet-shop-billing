@@ -46,6 +46,19 @@ router.patch('/:id/stock', requireAdmin, async (req, res) => {
   }
 
   try {
+    // First, get the current stock level
+    const currentProduct = await pool.query(
+      'SELECT stock FROM products WHERE id = $1',
+      [id]
+    );
+
+    if (currentProduct.rowCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const oldStock = currentProduct.rows[0].stock;
+
+    // Update the product stock
     const result = await pool.query(
       'UPDATE products SET stock = $1 WHERE id = $2 RETURNING id, name, price, stock, image_url',
       [stock, id]
@@ -54,6 +67,13 @@ router.patch('/:id/stock', requireAdmin, async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
+    // Log the stock update
+    const adminUsername = req.user ? req.user.username : 'admin';
+    await pool.query(
+      'INSERT INTO stock_updates (product_id, old_stock, new_stock, updated_by) VALUES ($1, $2, $3, $4)',
+      [id, oldStock, stock, adminUsername]
+    );
 
     res.json(result.rows[0]);
   } catch (error) {
