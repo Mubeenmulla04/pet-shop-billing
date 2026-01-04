@@ -34,3 +34,4 @@ app.listen(PORT, () => {
 });
 
 console.log("DB URL in server:", process.env.DATABASE_URL);
+console.log("👉 USING DATABASE:", process.env.DATABASE_URL);
