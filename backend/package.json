@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "seed:admin": "node scripts/create-admin.js"
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "db:migrate": "node scripts/migrate.js",
-    "build": "echo 'Backend is ready for production'",
-    "start:prod": "NODE_ENV=production node src/index.js"
-  },
+  "dev": "nodemon src/index.js",
+  "start": "node src/index.js",
+  "db:migrate": "node scripts/migrate.js",
+  "build": "echo 'Backend is ready for production'",
+  "start:prod": "NODE_ENV=production node src/index.js",
+  "seed:admin": "node scripts/create-admin.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
