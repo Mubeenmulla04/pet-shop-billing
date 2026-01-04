@@ -32,6 +32,7 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`API server listening on http://localhost:${PORT}`);
 });
+app.use("/api/utils", require("./routes/debugAdmins"));
 
 console.log("DB URL in server:", process.env.DATABASE_URL);
 console.log("👉 USING DATABASE:", process.env.DATABASE_URL);
