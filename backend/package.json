@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
+    "start": "node init-db.js && node src/index.js",
     "db:migrate": "node scripts/migrate.js",
     "build": "echo 'Backend is ready for production'",
     "start:prod": "NODE_ENV=production node src/index.js"
