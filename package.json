@@ -1,0 +1,28 @@
+{
+  "name": "pet-shop-billing",
+  "version": "1.0.0",
+  "description": "A complete billing system for pet shops with inventory management",
+  "main": "start-all.js",
+  "scripts": {
+    "start": "node start-all.js",
+    "dev": "node start-all.js",
+    "setup": "cd backend && node scripts/migrate.js",
+    "start:prod": "NODE_ENV=production node start-all.js",
+    "build": "cd frontend && npm install && npm run build",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "keywords": [
+    "billing",
+    "inventory",
+    "pet-shop",
+    "react",
+    "express",
+    "postgresql"
+  ],
+  "author": "MD_SAAD",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^7.2.4"
+  }
+}
