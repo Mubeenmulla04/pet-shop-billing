@@ -17,12 +17,23 @@ app.use(express.json());
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../public')));
+  const frontendPath = path.join(__dirname, '../public');
   
-  // Serve index.html for any non-API routes
-  app.get(/^(?!\/api\/).*$/, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-  });
+  // Check if frontend build exists before serving static files
+  if (fs.existsSync(frontendPath)) {
+    app.use(express.static(frontendPath));
+    
+    // Serve index.html for any non-API routes
+    app.get(/^(?!\/api\/).*$/, (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
+  } else {
+    console.log('Frontend build not found at:', frontendPath);
+    // Still allow API routes to work even if frontend isn't built
+    app.get(/^(?!\/api\/).*$/, (req, res) => {
+      res.status(404).send('Frontend not built');
+    });
+  }
 }
 
 // Removed static serving of uploads directory as we're now using direct image URLs
