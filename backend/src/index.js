@@ -15,6 +15,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Register routes BEFORE static file serving
+app.use('/api/auth', authRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/bills', billsRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/stock-updates', stockUpdatesRouter);
+
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   const frontendPath = path.join(__dirname, '../public');
@@ -38,17 +50,6 @@ if (process.env.NODE_ENV === 'production') {
 
 // Removed static serving of uploads directory as we're now using direct image URLs
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Register routes
-app.use('/api/auth', authRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/bills', billsRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/stock-updates', stockUpdatesRouter);
-
 const PORT = process.env.PORT || 4000;
 
 const server = app.listen(PORT, () => {
@@ -60,6 +61,8 @@ const server = app.listen(PORT, () => {
 server.on('error', (error) => {
   console.error('Server error:', error);
 });
+
+// Register debug routes in development only
 if (process.env.NODE_ENV !== 'production') {
   app.use("/api/utils", require("./routes/debugAdmins"));
   app.use("/api/utils", require("./routes/resetAdminPassword"));
