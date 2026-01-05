@@ -1,15 +1,11 @@
 services:
-  - name: pet-shop-billing-backend
-    type: web
+  - type: web
+    name: pet-shop-billing
     env: node
     region: oregon
     plan: free
-    buildCommand: |
-      cd backend && npm install
-      cd ../frontend && npm install && npm run build
-      cd ../backend && npm install
-    startCommand: |
-      cd backend && node scripts/migrate.js && npm start
+    buildCommand: npm install && cd frontend && npm install && npm run build && cd ../backend && npm install
+    startCommand: cd backend && npx node scripts/migrate.js && npm start
     envVars:
       - key: NODE_ENV
         value: production
