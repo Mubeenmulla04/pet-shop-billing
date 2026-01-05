@@ -24,13 +24,13 @@ if (process.env.NODE_ENV === 'production') {
     app.use(express.static(frontendPath));
     
     // Serve index.html for any non-API routes
-    app.get(/^(?!\/api\/).*$/, (req, res) => {
+    app.get(/^(?!\/api)/, (req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
   } else {
     console.log('Frontend build not found at:', frontendPath);
     // Still allow API routes to work even if frontend isn't built
-    app.get(/^(?!\/api\/).*$/, (req, res) => {
+    app.get(/^(?!\/api)/, (req, res) => {
       res.status(404).send('Frontend not built');
     });
   }
