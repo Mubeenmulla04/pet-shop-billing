@@ -19,7 +19,9 @@ services:
       npm install
     startCommand: |
       cd backend && 
-      node scripts/migrate.js || echo "Migration completed or failed, starting server anyway" && 
+      echo "Starting migration..." &&
+      node scripts/migrate.js || echo "Migration failed, but continuing to start server" && 
+      echo "Starting server..." &&
       npm start
     envVars:
       - key: NODE_ENV

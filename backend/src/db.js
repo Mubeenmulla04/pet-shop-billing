@@ -9,7 +9,7 @@ if (!connectionString) {
 
 const pool = new Pool({
   connectionString,
-  ssl: connectionString.includes('render.com')
+  ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,
 });

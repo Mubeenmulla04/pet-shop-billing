@@ -1,12 +1,17 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../src/db');
-const { ensureDatabaseExists } = require('./ensureDatabase');
+// Note: ensureDatabase may not be needed depending on your setup
+// const { ensureDatabaseExists } = require('./ensureDatabase');
+
+console.log('Migration script starting...');
+console.log('DATABASE_URL available:', !!process.env.DATABASE_URL);
 
 async function runMigrations() {
-  await ensureDatabaseExists();
-
+  console.log('Attempting to connect to database...');
+  
   const client = await pool.connect();
+  console.log('Connected to database successfully');
 
   try {
     await client.query('BEGIN');
