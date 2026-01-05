@@ -40,8 +40,14 @@ app.use('/api/stock-updates', stockUpdatesRouter);
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`API server listening on http://localhost:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`API server listening on port ${PORT}`);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('Database URL available:', !!process.env.DATABASE_URL);
+});
+
+server.on('error', (error) => {
+  console.error('Server error:', error);
 });
 if (process.env.NODE_ENV !== 'production') {
   app.use("/api/utils", require("./routes/debugAdmins"));

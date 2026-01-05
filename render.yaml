@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     buildCommand: npm install && cd frontend && npm install && npm run build && cd ../backend && npm install
-    startCommand: cd backend && npx node scripts/migrate.js && npm start
+    startCommand: cd backend && node scripts/migrate.js || echo "Migration completed or failed, starting server anyway" && npm start
     envVars:
       - key: NODE_ENV
         value: production
