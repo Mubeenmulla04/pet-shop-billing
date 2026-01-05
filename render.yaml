@@ -4,8 +4,23 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: npm install && cd frontend && npm install && npm run build && cd ../backend && npm install
-    startCommand: cd backend && node scripts/migrate.js || echo "Migration completed or failed, starting server anyway" && npm start
+    buildCommand: |
+      # Install root dependencies
+      npm install
+      
+      # Build frontend to the correct directory
+      cd frontend
+      npm install
+      mkdir -p ../backend/public
+      npm run build
+      
+      # Install backend dependencies
+      cd ../backend
+      npm install
+    startCommand: |
+      cd backend && 
+      node scripts/migrate.js || echo "Migration completed or failed, starting server anyway" && 
+      npm start
     envVars:
       - key: NODE_ENV
         value: production
